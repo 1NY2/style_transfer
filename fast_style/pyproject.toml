@@ -1,0 +1,20 @@
+[project]
+name = "fast-style"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+	"flask",
+	"flask-cors",
+	"pillow",
+	"torch",
+	"torchvision",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["single_fast_style"]

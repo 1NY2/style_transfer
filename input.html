@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图像风格迁移 - 参数设置</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .upload-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .upload-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .upload-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .upload-card {
+            text-align: center;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .upload-area {
+            border: 3px dashed #ccc;
+            border-radius: 10px;
+            padding: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .controls {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .param-controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .param-group {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        input[type="number"] {
+            width: 100px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transform: translateX(200%);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+        }
+
+        .notification.error {
+            background: linear-gradient(135deg, #f44336, #da190b);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎨 图像风格迁移</h1>
+            <p class="subtitle">上传内容图片和风格图片，设置训练参数</p>
+        </header>
+
+        <section class="upload-section">
+            <div class="upload-grid">
+                <div class="upload-card">
+                    <h2 class="card-title">内容图片</h2>
+                    <div class="upload-area" id="content-upload">
+                        <div class="upload-icon">🖼️</div>
+                        <p class="upload-text">点击或拖拽上传内容图片</p>
+                        <input type="file" id="content-input" accept="image/*" class="hidden">
+                    </div>
+                    <div id="content-preview" class="hidden">
+                        <img src="" alt="Content Preview" class="preview-image">
+                    </div>
+                </div>
+
+                <div class="upload-card">
+                    <h2 class="card-title">风格图片</h2>
+                    <div class="upload-area" id="style-upload">
+                        <div class="upload-icon">🎭</div>
+                        <p class="upload-text">点击或拖拽上传风格图片</p>
+                        <input type="file" id="style-input" accept="image/*" class="hidden">
+                    </div>
+                    <div id="style-preview" class="hidden">
+                        <img src="" alt="Style Preview" class="preview-image">
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="param-controls">
+                    <div class="param-group">
+                        <label for="content-weight">内容权重</label>
+                        <input type="number" id="content-weight" value="0.025" step="0.001" min="0.001" max="1">
+                    </div>
+                    <div class="param-group">
+                        <label for="style-weight">风格权重</label>
+                        <input type="number" id="style-weight" value="5" step="0.1" min="0.1" max="100">
+                    </div>
+                    <div class="param-group">
+                        <label for="epochs">训练轮数</label>
+                        <input type="number" id="epochs" value="100" min="10" max="500">
+                    </div>
+                </div>
+                <button id="start-training" class="btn" disabled>开始训练</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="notification hidden" id="notification"></div>
+
+    <script>
+        // 全局变量
+        let contentImage = null;
+        let styleImage = null;
+
+        // DOM 元素
+        const contentUpload = document.getElementById('content-upload');
+        const styleUpload = document.getElementById('style-upload');
+        const contentInput = document.getElementById('content-input');
+        const styleInput = document.getElementById('style-input');
+        const contentPreview = document.getElementById('content-preview');
+        const stylePreview = document.getElementById('style-preview');
+        const startTrainingBtn = document.getElementById('start-training');
+        const notification = document.getElementById('notification');
+
+        // 事件监听器
+        contentUpload.addEventListener('click', () => contentInput.click());
+        styleUpload.addEventListener('click', () => styleInput.click());
+
+        contentInput.addEventListener('change', handleContentImage);
+        styleInput.addEventListener('change', handleStyleImage);
+
+        // 拖拽上传支持
+        [contentUpload, styleUpload].forEach((uploadArea, index) => {
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = '#667eea';
+                uploadArea.style.backgroundColor = 'rgba(102, 126, 234, 0.1)';
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.style.borderColor = '#ccc';
+                uploadArea.style.backgroundColor = '';
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = '#ccc';
+                uploadArea.style.backgroundColor = '';
+
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type.startsWith('image/')) {
+                    if (index === 0) {
+                        handleImageFile(files[0], 'content');
+                    } else {
+                        handleImageFile(files[0], 'style');
+                    }
+                }
+            });
+        });
+
+        // 处理内容图片
+        function handleContentImage(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleImageFile(file, 'content');
+            }
+        }
+
+        // 处理风格图片
+        function handleStyleImage(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleImageFile(file, 'style');
+            }
+        }
+
+        // 处理图片文件
+        function handleImageFile(file, type) {
+            if (!file.type.startsWith('image/')) {
+                showNotification('请选择有效的图片文件', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (type === 'content') {
+                    contentImage = e.target.result;
+                    document.querySelector('#content-preview img').src = contentImage;
+                    contentPreview.classList.remove('hidden');
+                    contentUpload.classList.add('hidden');
+                } else {
+                    styleImage = e.target.result;
+                    document.querySelector('#style-preview img').src = styleImage;
+                    stylePreview.classList.remove('hidden');
+                    styleUpload.classList.add('hidden');
+                }
+
+                checkStartButton();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 检查是否可以开始训练
+        function checkStartButton() {
+            if (contentImage && styleImage) {
+                startTrainingBtn.disabled = false;
+            } else {
+                startTrainingBtn.disabled = true;
+            }
+        }
+
+        // 开始训练
+        startTrainingBtn.addEventListener('click', startTraining);
+
+        function startTraining() {
+            const contentWeight = parseFloat(document.getElementById('content-weight').value);
+            const styleWeight = parseFloat(document.getElementById('style-weight').value);
+            const epochs = parseInt(document.getElementById('epochs').value);
+
+            if (isNaN(contentWeight) || isNaN(styleWeight) || isNaN(epochs)) {
+                showNotification('请输入有效的参数值', 'error');
+                return;
+            }
+
+            // 将数据保存到 localStorage
+            const trainingData = {
+                contentImage: contentImage,
+                styleImage: styleImage,
+                contentWeight: contentWeight,
+                styleWeight: styleWeight,
+                epochs: epochs
+            };
+
+            localStorage.setItem('styleTransferData', JSON.stringify(trainingData));
+
+            // 跳转到训练页面
+            window.location.href = 'training.html';
+        }
+
+        // 显示通知
+        function showNotification(message, type) {
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

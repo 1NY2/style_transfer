@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图像风格迁移 - 训练过程</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .images-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .images-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .images-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .image-card {
+            text-align: center;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .image-preview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .training-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #333;
+            text-align: center;
+        }
+
+        .progress-container {
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .final-result-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .final-result-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .final-result-image {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .result-item {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .result-image {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+        }
+
+        .result-info {
+            padding: 10px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        .loss-chart {
+            height: 200px;
+            margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        #loss-canvas{
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            border: 1px solid #eee;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transform: translateX(200%);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+        }
+
+        .notification.error {
+            background: linear-gradient(135deg, #f44336, #da190b);
+        }
+
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn.stop {
+            background: linear-gradient(135deg, #f44336, #da190b);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎨 图像风格迁移</h1>
+            <p class="subtitle">训练过程可视化</p>
+        </header>
+
+        <button class="back-btn" id="back-btn">← 返回参数设置</button>
+
+        <section class="images-section">
+            <div class="images-grid">
+                <div class="image-card">
+                    <h2 class="card-title">内容图片</h2>
+                    <img id="content-display" src="" alt="Content Image" class="image-preview">
+                </div>
+                <div class="image-card">
+                    <h2 class="card-title">风格图片</h2>
+                    <img id="style-display" src="" alt="Style Image" class="image-preview">
+                </div>
+            </div>
+        </section>
+
+        <section class="training-section">
+            <h2 class="section-title">训练进度</h2>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="status-info">
+                    <span id="current-status">准备训练...</span>
+                    <span id="time-elapsed">耗时: 0s</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="start-stop-btn" class="btn">开始训练</button>
+            </div>
+
+            <div class="loss-chart" id="loss-chart">
+                <canvas id="loss-canvas"></canvas>
+            </div>
+
+            <!-- 最终结果展示区域 -->
+            <div id="final-result-section" class="final-result-section hidden">
+                <h3 class="final-result-title">最终结果</h3>
+                <img id="final-result-image" class="final-result-image" src="" alt="Final Result">
+                <div id="final-result-info" style="margin-top: 10px;"></div>
+            </div>
+
+            <h2 class="section-title">中间结果</h2>
+            <div class="results-grid" id="results-grid">
+            </div>
+        </section>
+    </div>
+
+    <div class="notification hidden" id="notification"></div>
+
+    <script>
+        // 全局变量
+        let trainingData = null;
+        let isTraining = false;
+        let abortController = null;
+        let startTime = null;
+        let lossData = [];
+        let currentEpoch = 0;
+
+        // DOM 元素
+        const contentDisplay = document.getElementById('content-display');
+        const styleDisplay = document.getElementById('style-display');
+        const progressFill = document.getElementById('progress-fill');
+        const currentStatus = document.getElementById('current-status');
+        const timeElapsed = document.getElementById('time-elapsed');
+        const resultsGrid = document.getElementById('results-grid');
+        const notification = document.getElementById('notification');
+        const backBtn = document.getElementById('back-btn');
+        const lossCanvas = document.getElementById('loss-canvas');
+        const ctx = lossCanvas.getContext('2d');
+        const startStopBtn = document.getElementById('start-stop-btn');
+        const finalResultSection = document.getElementById('final-result-section');
+        const finalResultImage = document.getElementById('final-result-image');
+        const finalResultInfo = document.getElementById('final-result-info');
+        const lossChart = document.getElementById('loss-chart');
+
+        // 页面加载时初始化
+        window.addEventListener('DOMContentLoaded', initTrainingPage);
+
+        function initTrainingPage() {
+            console.log('Initializing training page...');
+            // 从 localStorage 获取训练数据
+            const data = localStorage.getItem('styleTransferData');
+            if (!data) {
+                showNotification('未找到训练数据，请先设置参数', 'error');
+                setTimeout(() => {
+                    window.location.href = 'input.html';
+                }, 3000);
+                return;
+            }
+
+            try {
+                trainingData = JSON.parse(data);
+
+                // 显示图片
+                contentDisplay.src = trainingData.contentImage;
+                styleDisplay.src = trainingData.styleImage;
+
+                // 确保 Canvas 元素已正确初始化
+                setTimeout(() => {
+                    if (lossCanvas) {
+                        // 设置 Canvas 尺寸为容器的实际尺寸
+                        lossCanvas.width = lossChart.offsetWidth;
+                        lossCanvas.height = lossChart.offsetHeight;
+
+                         // 添加调试信息
+                        console.log('Canvas initialized:', {
+                            width: lossCanvas.width,
+                            height: lossCanvas.height
+                        });
+                    }
+                }, 100);
+            } catch (e) {
+                showNotification('训练数据格式错误，请重新设置参数', 'error');
+                setTimeout(() => {
+                    window.location.href = 'input.html';
+                }, 3000);
+            }
+        }
+
+        // 返回按钮事件
+        backBtn.addEventListener('click', () => {
+            if (isTraining) {
+                if (!confirm('确定要返回参数设置页面吗？这将停止当前训练。')) {
+                    return;
+                }
+            }
+            stopTraining();
+            window.location.href = 'input.html';
+        });
+
+        // 开始/停止按钮事件
+        startStopBtn.addEventListener('click', () => {
+            if (isTraining) {
+                stopTraining();
+            } else {
+                startTraining();
+            }
+        });
+
+        // 开始训练
+        async function startTraining() {
+            console.log('Starting training...');
+            if (isTraining) return;
+
+            window.jsonBuffer = '';
+
+            isTraining = true;
+            startStopBtn.textContent = '停止训练';
+            startStopBtn.classList.add('stop');
+
+            // 显示加载状态
+            currentStatus.textContent = '正在连接服务器...';
+
+            // 初始化训练状态
+            startTime = Date.now();
+            lossData = [];
+            currentEpoch = 0;
+
+            // 重置界面
+            progressFill.style.width = '0%';
+            progressFill.style.transition = 'none';
+            resultsGrid.innerHTML = '';
+            currentStatus.textContent = '开始训练...';
+            timeElapsed.textContent = '耗时: 0s';
+
+            // 隐藏最终结果
+            finalResultSection.classList.add('hidden');
+
+            try {
+                // 发送训练请求到后端
+                await trainStyleTransfer();
+            } catch (error) {
+                console.error('训练出错:', error);
+                showNotification('训练过程中出现错误: ' + error.message, 'error');
+                stopTraining();
+            }
+        }
+
+        // 停止训练
+        function stopTraining() {
+            isTraining = false;
+            startStopBtn.textContent = '开始训练';
+            startStopBtn.classList.remove('stop');
+
+            if (abortController) {
+                abortController.abort();
+            }
+
+            currentStatus.textContent = '训练已停止';
+
+            window.jsonBuffer = '';
+        }
+
+        // 调用后端API进行训练
+        async function trainStyleTransfer() {
+            abortController = new AbortController();
+
+            try {
+                const response = await fetch('/train', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contentImage: trainingData.contentImage,
+                        styleImage: trainingData.styleImage,
+                        contentWeight: trainingData.contentWeight,
+                        styleWeight: trainingData.styleWeight,
+                        epochs: trainingData.epochs
+                    }),
+                    signal: abortController.signal
+                });
+
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+
+                if (!response.ok) {
+                    const errorMessage = `服务器错误: ${response.status} ${response.statusText}`;
+                    throw new Error(errorMessage);
+                }
+
+                // 确保响应是文本类型
+                if (response.headers.get('content-type')?.includes('text/plain')) {
+                    console.log('Response is text/plain, processing stream...');
+                }
+
+                // 添加调试：检查响应体是否可读
+                console.log('Response body readable:', response.body !== null);
+
+                if (!response.body) {
+                    throw new Error('服务器响应不支持流式读取');
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+
+                    if (done) {
+                        break;
+                    }
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    console.log('Received chunk:', chunk);  // 添加调试输出
+
+                    processTrainingOutput(chunk);
+                }
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    currentStatus.textContent = '训练已取消';
+                } else {
+                    console.error('训练请求失败:', error);
+                    showNotification('训练请求失败: ' + error.message, 'error');
+                    currentStatus.textContent = '训练失败: ' + error.message;
+                }
+                stopTraining();
+            }
+        }
+
+        // 处理训练输出
+        function processTrainingOutput(data) {
+            console.log('Processing data chunk, length:', data.length);
+
+            // 缓冲区用于存储不完整的JSON
+            if (!window.jsonBuffer) {
+                window.jsonBuffer = '';
+            }
+
+            // 将新数据添加到缓冲区
+            window.jsonBuffer += data;
+
+            // 分割完整的JSON对象
+            let startIndex = 0;
+            while (startIndex < window.jsonBuffer.length) {
+                // 查找JSON对象的开始和结束
+                const openBraceIndex = window.jsonBuffer.indexOf('{', startIndex);
+                if (openBraceIndex === -1) {
+                    break;
+                }
+
+                let braceCount = 0;
+                let endIndex = -1;
+
+                // 寻找匹配的闭合大括号
+                for (let i = openBraceIndex; i < window.jsonBuffer.length; i++) {
+                    if (window.jsonBuffer[i] === '{') {
+                        braceCount++;
+                    } else if (window.jsonBuffer[i] === '}') {
+                        braceCount--;
+                        if (braceCount === 0) {
+                            endIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                // 如果找到了完整的JSON对象
+                if (endIndex !== -1) {
+                    const jsonString = window.jsonBuffer.substring(openBraceIndex, endIndex + 1);
+
+                    try {
+                        const output = JSON.parse(jsonString);
+                        console.log('Received output:', output);
+
+                        switch(output.type) {
+                            case 'progress':
+                                updateProgress(output);
+                                break;
+                            case 'result':
+                                addResultPreview(output);
+                                break;
+                            case 'complete':
+                                showFinalResult(output);
+                                stopTraining();
+                                break;
+                            case 'message':
+                                if (output.text === 'Early stopping!') {
+                                    currentStatus.textContent = '提前停止训练';
+                                    showNotification('训练提前停止', 'success');
+                                    stopTraining();
+                                }
+                                break;
+                            case 'error':
+                                currentStatus.textContent = '训练出错：' + output.message;
+                                showNotification(output.message, 'error');
+                                stopTraining();
+                                break;
+                        }
+
+                        // 移动起始索引到下一个可能的对象开始位置
+                        startIndex = endIndex + 1;
+                    } catch (e) {
+                        console.error('Failed to parse JSON:', jsonString, e);
+                        startIndex = openBraceIndex + 1;
+                    }
+                } else {
+                    // 没有找到完整的JSON对象，保留剩余部分在缓冲区中
+                    break;
+                }
+            }
+
+            // 保留未处理的部分在缓冲区中
+            if (startIndex < window.jsonBuffer.length) {
+                window.jsonBuffer = window.jsonBuffer.substring(startIndex);
+            } else {
+                window.jsonBuffer = '';
+            }
+        }
+
+        // 更新进度
+        function updateProgress(data) {
+            currentEpoch = data.epoch;
+
+            // 更新进度条
+            const progress = (currentEpoch / trainingData.epochs) * 100;
+            progressFill.style.width = `${progress}%`;
+            progressFill.style.transition = 'width 0.3s ease';
+
+            // 更新时间
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            timeElapsed.textContent = `耗时: ${elapsed}s`;
+
+            // 更新损失数据
+            lossData.push({epoch: currentEpoch, loss: data.loss});
+
+            // 更新状态文本
+            currentStatus.textContent = `训练中... Epoch: ${currentEpoch}/${trainingData.epochs}, Loss: ${data.loss.toFixed(4)}`;
+
+            // 绘制损失图表
+            drawLossChart();
+
+            // 调试信息
+            console.log(`Updated progress: ${progress}%, Epoch: ${currentEpoch}, Loss: ${data.loss}`);
+        }
+
+        // 添加结果预览
+        function addResultPreview(data) {
+            const resultItem = document.createElement('div');
+            resultItem.className = 'result-item';
+
+            resultItem.innerHTML = `
+                <img src="${data.image}" alt="Result ${data.epoch}" class="result-image">
+                <div class="result-info">
+                    <div>Epoch: ${data.epoch}</div>
+                    <div>Loss: ${data.loss.toFixed(4)}</div>
+                </div>
+            `;
+
+            resultsGrid.prepend(resultItem);
+        }
+
+        // 显示最终结果
+        function showFinalResult(data) {
+            // 显示最终结果区域
+            finalResultSection.classList.remove('hidden');
+            finalResultImage.src = data.image;
+            finalResultInfo.innerHTML = `<strong>Loss:</strong> ${data.loss.toFixed(4)}`;
+
+            // 同时也在中间结果中添加最终结果
+            const resultItem = document.createElement('div');
+            resultItem.className = 'result-item';
+
+            resultItem.innerHTML = `
+                <img src="${data.image}" alt="Final Result" class="result-image">
+                <div class="result-info">
+                    <div>最终结果</div>
+                    <div>Loss: ${data.loss.toFixed(4)}</div>
+                </div>
+            `;
+
+            resultsGrid.prepend(resultItem);
+        }
+
+        // 绘制损失图表
+        function drawLossChart() {
+            if (lossData.length === 0) return;
+
+            // 确保 Canvas 存在且有尺寸
+            if (!ctx || !lossCanvas.width || !lossCanvas.height) {
+                console.warn('Canvas not ready for drawing');
+                return;
+            }
+
+            const width = lossCanvas.width;
+            const height = lossCanvas.height;
+            const padding = 40; // 图表边距
+
+            // 清空画布
+            ctx.clearRect(0, 0, width, height);
+
+            // 设置背景色
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(0, 0, width, height);
+
+            // 计算最大损失值和最小损失值用于缩放
+            const maxLoss = Math.max(...lossData.map(d => d.loss));
+            const minLoss = Math.min(...lossData.map(d => d.loss));
+            const lossRange = maxLoss - minLoss || 1;
+
+            // 计算最大epoch用于X轴
+            const maxEpoch = Math.max(...lossData.map(d => d.epoch));
+
+            // 绘制网格线
+            ctx.strokeStyle = '#e9ecef';
+            ctx.lineWidth = 1;
+
+            // 水平网格线
+            const horizontalLines = 5;
+            for (let i = 0; i <= horizontalLines; i++) {
+                const y = padding + (height - 2 * padding) * (i / horizontalLines);
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(width - padding, y);
+                ctx.stroke();
+            }
+
+            // 垂直网格线
+            const verticalLines = Math.min(10, lossData.length - 1);
+            for (let i = 0; i <= verticalLines; i++) {
+                const x = padding + (width - 2 * padding) * (i / verticalLines);
+                ctx.beginPath();
+                ctx.moveTo(x, padding);
+                ctx.lineTo(x, height - padding);
+                ctx.stroke();
+            }
+
+            // 绘制坐标轴
+            ctx.strokeStyle = '#495057';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            // X轴
+            ctx.moveTo(padding, height - padding);
+            ctx.lineTo(width - padding, height - padding);
+            // Y轴
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, height - padding);
+            ctx.stroke();
+
+            // 绘制坐标轴标签
+            ctx.fillStyle = '#495057';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+
+            // X轴标签
+            ctx.fillText('Epoch', width / 2, height - 3);
+
+            // Y轴标签 (旋转90度)
+            ctx.save();
+            ctx.translate(15, height / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.restore();
+
+            // X轴刻度值
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            for (let i = 0; i <= Math.min(10, lossData.length - 1); i++) {
+                const epochStep = Math.ceil(maxEpoch / Math.min(10, lossData.length - 1));
+                const epochValue = i * epochStep;
+                const x = padding + (width - 2 * padding) * (epochValue / maxEpoch);
+                ctx.fillText(epochValue.toString(), x, height - padding + 5);
+            }
+
+            // Y轴刻度值
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i <= 5; i++) {
+                const lossValue = minLoss + (lossRange) * (1 - i / 5);
+                const y = padding + (height - 2 * padding) * (i / 5);
+                ctx.fillText(lossValue.toFixed(2), padding - 5, y);
+            }
+
+            // 绘制损失曲线
+            if (lossData.length > 1) {
+                ctx.strokeStyle = '#667eea';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+
+                lossData.forEach((data, index) => {
+                    const x = padding + ((width - 2 * padding) * (data.epoch / maxEpoch));
+                    const y = padding + (height - 2 * padding) * (1 - (data.loss - minLoss) / lossRange);
+
+                    if (index === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+
+                ctx.stroke();
+
+                // 绘制数据点
+                ctx.fillStyle = '#667eea';
+                lossData.forEach((data) => {
+                    const x = padding + ((width - 2 * padding) * (data.epoch / maxEpoch));
+                    const y = padding + (height - 2 * padding) * (1 - (data.loss - minLoss) / lossRange);
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+
+            // 绘制标题
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('训练损失变化图', width / 2, 20);
+        }
+
+        // 显示通知
+        function showNotification(message, type) {
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // 初始化画布大小
+        window.addEventListener('resize', () => {
+            if (lossData.length > 0) {
+                lossCanvas.width = lossCanvas.offsetWidth;
+                lossCanvas.height = lossCanvas.offsetHeight;
+                drawLossChart();
+            }
+        });
+
+        // 页面卸载时清理
+        window.addEventListener('beforeunload', () => {
+            if (isTraining) {
+                stopTraining();
+            }
+        });
+
+        // 页面加载完成后执行
+        window.addEventListener('DOMContentLoaded', () => {
+            // 等待所有元素加载完成
+            setTimeout(() => {
+                if (lossCanvas && lossChart) {
+                    lossCanvas.width = lossChart.offsetWidth;
+                    lossCanvas.height = lossChart.offsetHeight;
+                    console.log('Canvas dimensions set:', lossCanvas.width, 'x', lossCanvas.height);
+                }
+            }, 200);
+        });
+    </script>
+</body>
+</html>
